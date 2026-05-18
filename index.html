@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linux Handbuch — Kommando Referenz</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* ── ESCAPE ROOM BUTTON ── */
+    .escape-btn {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      padding: 4px 12px 3px 10px;
+      background: linear-gradient(135deg, #1c0505, #300a0a);
+      border: 1px solid #7a2020;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      text-decoration: none;
+      transition: all 0.2s;
+      animation: er-btn-glow 2.5s ease-in-out infinite;
+      overflow: hidden;
+    }
+    .escape-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,80,80,0.1), transparent);
+      transform: translateX(-100%);
+      animation: er-btn-sweep 3s ease-in-out infinite;
+    }
+    @keyframes er-btn-sweep { 0%,100%{transform:translateX(-100%)} 60%{transform:translateX(100%)} }
+    @keyframes er-btn-glow {
+      0%,100%{border-color:#5a1a1a; box-shadow:none}
+      50%{border-color:#cc3333; box-shadow:0 0 14px rgba(255,50,50,0.3), 0 0 0 1px rgba(255,50,50,0.1)}
+    }
+    .escape-btn:hover {
+      background: linear-gradient(135deg, #2a0808, #480c0c);
+      border-color: #ff5555;
+      box-shadow: 0 0 22px rgba(255,50,50,0.4);
+      transform: scale(1.05);
+    }
+    .eb-top { display:flex; align-items:center; gap:5px; }
+    .eb-dot {
+      width:7px; height:7px; border-radius:50%;
+      background:#ff4444; box-shadow:0 0 5px #ff4444;
+      animation:er-dot-blink 1s step-end infinite;
+    }
+    @keyframes er-dot-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+    .eb-skull { font-size:13px; line-height:1; }
+    .eb-label {
+      font-size:11px; font-weight:700; letter-spacing:2px;
+      color:#ff6666; text-shadow:0 0 8px rgba(255,80,80,0.5);
+    }
+    .escape-btn:hover .eb-label { color:#ffaaaa; }
+    .eb-sub { font-size:8px; color:#6b2020; letter-spacing:1px; }
+    .escape-btn:hover .eb-sub { color:#cc5555; }
+
+    /* ── ESCAPE ROOM OVERLAY ── */
+    #er-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: rgba(2,5,12,0.95);
+      backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+    }
+    #er-overlay.open { display:flex; }
+
+    #er-win {
+      width: min(920px, 96vw);
+      height: min(660px, 93vh);
+      background: #09101f;
+      border: 1px solid #1a2d48;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(88,166,255,0.07), 0 40px 100px rgba(0,0,0,0.95);
+      animation: er-slide 0.3s cubic-bezier(0.16,1,0.3,1);
+      position: relative;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+    }
+    @keyframes er-slide {
+      from{transform:translateY(30px) scale(0.97);opacity:0}
+      to{transform:translateY(0) scale(1);opacity:1}
+    }
+
+    /* titlebar */
+    .er-titlebar {
+      height:40px; flex-shrink:0;
+      background:#060d1a;
+      border-bottom:1px solid #142236;
+      display:flex; align-items:center; padding:0 14px; gap:8px;
+      user-select:none;
+    }
+    .er-dots { display:flex; gap:7px; }
+    .er-dot { width:13px; height:13px; border-radius:50%; cursor:pointer; transition:filter .15s; }
+    .er-dot:hover{filter:brightness(1.25)}
+    .er-dot.r{background:#ff5f57} .er-dot.y{background:#febc2e} .er-dot.g{background:#28c840}
+    .er-tb-title {
+      flex:1; text-align:center; font-size:11px; color:#2a4460; letter-spacing:1px;
+    }
+    .er-tb-badge {
+      font-size:9px; padding:2px 9px; border-radius:10px;
+      border:1px solid #7a1c1c; color:#ff5555; background:#150303;
+      letter-spacing:2px; animation:er-dot-blink 2.5s ease-in-out infinite;
+    }
+
+    /* status bar */
+    .er-status {
+      height:34px; flex-shrink:0;
+      background:#060d1a;
+      border-bottom:1px solid #142236;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 16px; gap:10px;
+    }
+    .er-room-lbl { font-size:10px; color:#1e3450; letter-spacing:2px; margin-right:4px; }
+    #er-room-name { font-size:12px; color:#f0a84a; font-weight:600; letter-spacing:1px; }
+    #er-progress { display:flex; gap:5px; align-items:center; }
+    .er-pip {
+      width:26px; height:5px; border-radius:3px;
+      background:#142236; transition:all 0.4s;
+    }
+    .er-pip.done{background:#3fb950; box-shadow:0 0 6px rgba(63,185,80,0.5)}
+    .er-pip.cur{background:#f0a84a; box-shadow:0 0 8px rgba(240,168,74,0.6); animation:er-pip-p 1s ease infinite}
+    @keyframes er-pip-p{50%{opacity:0.5}}
+
+    /* terminal body */
+    #er-body {
+      flex:1; overflow-y:auto; padding:10px 18px;
+      display:flex; flex-direction:column; gap:0;
+      scroll-behavior:smooth;
+    }
+    #er-body::-webkit-scrollbar{width:4px}
+    #er-body::-webkit-scrollbar-thumb{background:#1a2d48;border-radius:2px}
+
+    .erl { font-size:13px; line-height:1.75; white-space:pre-wrap; word-break:break-all; }
+    .erl.sys  { color:#2a4460; }
+    .erl.cmd  { color:#58a6ff; }
+    .erl.out  { color:#cdd9e5; }
+    .erl.ok   { color:#56d364; }
+    .erl.err  { color:#ff7b72; }
+    .erl.warn { color:#f0a84a; }
+    .erl.story{ color:#79c0ff; font-style:italic; }
+    .erl.hi   { color:#d2a8ff; }
+    .erl.ascii{ color:#1f6feb; font-size:11px; line-height:1.35; }
+    .erl.sep  { color:#142236; }
+    .erl.gap  { height:7px; display:block; }
+
+    /* input */
+    .er-inputrow {
+      flex-shrink:0;
+      border-top:1px solid #142236;
+      background:#060d1a;
+      padding:9px 16px;
+      display:flex; align-items:center; gap:8px;
+    }
+    #er-prompt {
+      font-size:13px; white-space:nowrap; user-select:none;
+      color:#3fb950;
+    }
+    #er-prompt .ph{color:#58a6ff} #er-prompt .ps{color:#2a4460}
+    #er-inp {
+      flex:1; background:transparent; border:none; outline:none;
+      color:#cdd9e5; font-family:'JetBrains Mono','Courier New',monospace;
+      font-size:13px; caret-color:#58a6ff; min-width:0;
+    }
+    #er-inp::placeholder{color:#1a2d48}
+
+    /* hint bar */
+    .er-hints {
+      flex-shrink:0;
+      border-top:1px solid #0e1c2e;
+      background:#04091a;
+      padding:5px 16px;
+      display:flex; gap:16px; flex-wrap:wrap;
+      font-size:10px; color:#1a2d48;
+      font-family:'JetBrains Mono',monospace;
+    }
+    .er-hints span{cursor:pointer;transition:color .15s}
+    .er-hints span:hover{color:#58a6ff}
+    .er-hk{color:#243650}
+
+    /* victory */
+    #er-victory {
+      display:none;
+      position:absolute; inset:0; z-index:10;
+      background:rgba(6,13,26,0.97);
+      flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:24px;
+      font-family:'JetBrains Mono',monospace;
+    }
+    #er-victory.show{display:flex}
+    .er-v-ascii{color:#56d364;font-size:11px;line-height:1.3;margin-bottom:18px;text-shadow:0 0 20px rgba(86,211,100,0.4);white-space:pre}
+    .er-v-title{font-size:20px;color:#56d364;font-weight:700;letter-spacing:4px;margin-bottom:6px}
+    .er-v-sub{font-size:12px;color:#2a4460;margin-bottom:22px}
+    .er-v-stats{display:flex;gap:28px;margin-bottom:26px;flex-wrap:wrap;justify-content:center}
+    .er-v-n{display:block;font-size:28px;font-weight:700;color:#f0a84a}
+    .er-v-l{font-size:9px;color:#1e3450;letter-spacing:2px}
+    .er-v-btn{
+      padding:10px 28px;background:#0d2e5a;
+      border:1px solid #1f6feb;color:#58a6ff;
+      font-family:'JetBrains Mono',monospace;font-size:12px;
+      cursor:pointer;border-radius:4px;letter-spacing:2px;transition:all .2s;
+    }
+    .er-v-btn:hover{background:#1f6feb;color:#fff}
+  </style>
+</head>
+<body>
+
+<canvas id="matrix-bg"></canvas>
+
+<!-- ══ TOPBAR ══ -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="blink">▋</span>
+    <span>root@linux-handbuch:~$</span>
+    <span class="topbar-version">v2.0.26</span>
+  </div>
+  <div class="topbar-right">
+    <span id="clock"></span>
+    <span class="sep">|</span>
+    <span>📡 Online</span>
+    <span class="sep">|</span>
+    <button class="escape-btn" onclick="EscapeRoom.open()">
+      <div class="eb-top">
+        <span class="eb-dot"></span>
+        <span class="eb-skull">💀</span>
+        <span class="eb-label">ESCAPE ROOM</span>
+      </div>
+      <div class="eb-sub">[ ENTER IF YOU DARE ]</div>
+    </button>
+  </div>
+</div>
+
+<!-- ══ ESCAPE ROOM OVERLAY ══ -->
+<div id="er-overlay">
+  <div id="er-win">
+
+    <!-- Titlebar -->
+    <div class="er-titlebar">
+      <div class="er-dots">
+        <div class="er-dot r" onclick="EscapeRoom.close()" title="Schliessen"></div>
+        <div class="er-dot y"></div>
+        <div class="er-dot g"></div>
+      </div>
+      <div class="er-tb-title">bash — root@dungeon — 80x24</div>
+      <div class="er-tb-badge">⚠ ESCAPE ROOM</div>
+    </div>
+
+    <!-- Status -->
+    <div class="er-status">
+      <div>
+        <span class="er-room-lbl">RAUM</span>
+        <span id="er-room-name">—</span>
+      </div>
+      <div id="er-progress"></div>
+    </div>
+
+    <!-- Output -->
+    <div id="er-body" onclick="document.getElementById('er-inp').focus()"></div>
+
+    <!-- Input -->
+    <div class="er-inputrow">
+      <span id="er-prompt">
+        <span id="er-pu">root</span><span class="ps">@</span><span id="er-ph">dungeon</span><span class="ps">:</span><span id="er-pp">~</span><span class="ps">$</span>
+      </span>
+      <input id="er-inp" type="text" placeholder="Befehl eingeben..." autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- Hint bar -->
+    <div class="er-hints">
+      <span onclick="EscapeRoom.hint()">💡 <span class="er-hk">hint</span></span>
+      <span onclick="EscapeRoom.inv()">🎒 <span class="er-hk">inventory</span></span>
+      <span onclick="EscapeRoom.type('help')">📖 <span class="er-hk">help</span></span>
+      <span onclick="EscapeRoom.type('look')">👁 <span class="er-hk">look</span></span>
+      <span onclick="EscapeRoom.close()" style="margin-left:auto">✕ Schliessen</span>
+    </div>
+
+    <!-- Victory -->
+    <div id="er-victory">
+      <div class="er-v-ascii"> ██████╗ ███████╗███████╗██████╗███████╗███████╗██╗
+ ██╔══██╗██╔════╝╚════██║╚════██╗╚════██║╚════██║██║
+ ██████╔╝█████╗      ██╔╝    ██╔╝    ██╔╝    ██╔╝██║
+ ██╔══██╗██╔══╝     ██╔╝    ██╔╝    ██╔╝    ██╔╝ ╚═╝
+ ██║  ██║███████╗   ██║    ██╔╝    ██║     ██║   ██╗
+ ╚═╝  ╚═╝╚══════╝   ╚═╝    ╚═╝     ╚═╝     ╚═╝   ╚═╝</div>
+      <div class="er-v-title">🏆 FREIHEIT ERREICHT!</div>
+      <div class="er-v-sub">Du hast alle 4 Räume des Linux-Dungeons gemeistert und HAL-9000 besiegt!</div>
+      <div class="er-v-stats">
+        <div><span class="er-v-n" id="er-v-t">0:00</span><span class="er-v-l">ZEIT</span></div>
+        <div><span class="er-v-n" id="er-v-c">0</span><span class="er-v-l">BEFEHLE</span></div>
+        <div><span class="er-v-n" id="er-v-h">0</span><span class="er-v-l">HINTS</span></div>
+      </div>
+      <button class="er-v-btn" onclick="EscapeRoom.restart()">↺ NOCHMAL SPIELEN</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ MAIN HANDBOOK ══ -->
+<header>
+  <div class="header-inner">
+    <div class="logo-area">
+      <div class="tux-icon">🐧</div>
+      <div class="logo-text">
+        <h1>LINUX <span class="accent">HANDBUCH</span></h1>
+        <p class="tagline">// Die ultimative Kommando-Referenz für Admins &amp; Power-User</p>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat"><span class="stat-num" id="cmd-count">0</span><span class="stat-label">Befehle</span></div>
+      <div class="stat"><span class="stat-num">12</span><span class="stat-label">Kategorien</span></div>
+      <div class="stat"><span class="stat-num">∞</span><span class="stat-label">Nützlichkeit</span></div>
+    </div>
+  </div>
+  <div class="search-container">
+    <div class="search-box">
+      <span class="search-prompt">$</span>
+      <input type="text" id="search-input" placeholder="Befehl suchen... z.B. 'grep', 'chmod', 'systemctl'" autocomplete="off">
+      <span class="search-icon"><i class="fas fa-search"></i></span>
+    </div>
+    <div id="search-results" class="search-results hidden"></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-title"><i class="fas fa-terminal"></i> KATEGORIEN</div>
+    <ul class="nav-list">
+      <li><a href="#dateisystem"   class="nav-link active" data-cat="dateisystem"><i class="fas fa-folder-open"></i> Dateisystem</a></li>
+      <li><a href="#benutzer"      class="nav-link" data-cat="benutzer"><i class="fas fa-users"></i> Benutzer &amp; Gruppen</a></li>
+      <li><a href="#berechtigungen"class="nav-link" data-cat="berechtigungen"><i class="fas fa-lock"></i> Berechtigungen</a></li>
+      <li><a href="#prozesse"      class="nav-link" data-cat="prozesse"><i class="fas fa-microchip"></i> Prozesse &amp; Jobs</a></li>
+      <li><a href="#netzwerk"      class="nav-link" data-cat="netzwerk"><i class="fas fa-network-wired"></i> Netzwerk</a></li>
+      <li><a href="#pakete"        class="nav-link" data-cat="pakete"><i class="fas fa-box-open"></i> Paketverwaltung</a></li>
+      <li><a href="#text"          class="nav-link" data-cat="text"><i class="fas fa-file-alt"></i> Text &amp; Suche</a></li>
+      <li><a href="#archiv"        class="nav-link" data-cat="archiv"><i class="fas fa-file-archive"></i> Archivierung</a></li>
+      <li><a href="#system"        class="nav-link" data-cat="system"><i class="fas fa-server"></i> Systeminfo</a></li>
+      <li><a href="#dienste"       class="nav-link" data-cat="dienste"><i class="fas fa-cogs"></i> Dienste (systemd)</a></li>
+      <li><a href="#ssh"           class="nav-link" data-cat="ssh"><i class="fas fa-shield-alt"></i> SSH &amp; Remote</a></li>
+      <li><a href="#bash"          class="nav-link" data-cat="bash"><i class="fas fa-code"></i> Bash &amp; Scripting</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="os-badge"><i class="fab fa-linux"></i> Linux Universal</div>
+      <div class="os-badge"><i class="fab fa-ubuntu"></i> Ubuntu / Debian</div>
+      <div class="os-badge"><i class="fas fa-hat-cowboy"></i> RHEL / CentOS</div>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <section id="dateisystem" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-folder-open"></i> Dateisystem Navigation &amp; Verwaltung</h2><p class="section-desc">Navigieren, erstellen, kopieren, verschieben und löschen von Dateien und Verzeichnissen.</p></div>
+      <div class="cmd-grid" id="grid-dateisystem"></div>
+    </section>
+    <section id="benutzer" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-users"></i> Benutzer &amp; Gruppen</h2><p class="section-desc">Benutzerverwaltung, Gruppenmanagement, Passwörter und Kontoinformationen.</p></div>
+      <div class="cmd-grid" id="grid-benutzer"></div>
+    </section>
+    <section id="berechtigungen" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-lock"></i> Berechtigungen &amp; Eigentümer</h2><p class="section-desc">Datei- und Verzeichnisrechte, Eigentümer und spezielle Bits verwalten.</p></div>
+      <div class="cmd-grid" id="grid-berechtigungen"></div>
+    </section>
+    <section id="prozesse" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-microchip"></i> Prozesse &amp; Jobs</h2><p class="section-desc">Prozesse überwachen, steuern, beenden und Hintergrundaufgaben verwalten.</p></div>
+      <div class="cmd-grid" id="grid-prozesse"></div>
+    </section>
+    <section id="netzwerk" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-network-wired"></i> Netzwerk</h2><p class="section-desc">Netzwerkkonfiguration, Diagnose, Firewalls und Verbindungsmanagement.</p></div>
+      <div class="cmd-grid" id="grid-netzwerk"></div>
+    </section>
+    <section id="pakete" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-box-open"></i> Paketverwaltung</h2><p class="section-desc">Software installieren, aktualisieren und entfernen auf verschiedenen Distributionen.</p></div>
+      <div class="cmd-grid" id="grid-pakete"></div>
+    </section>
+    <section id="text" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-file-alt"></i> Text &amp; Suche</h2><p class="section-desc">Textdateien lesen, bearbeiten, durchsuchen und manipulieren.</p></div>
+      <div class="cmd-grid" id="grid-text"></div>
+    </section>
+    <section id="archiv" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-file-archive"></i> Archivierung &amp; Komprimierung</h2><p class="section-desc">Dateien und Verzeichnisse archivieren, komprimieren und entpacken.</p></div>
+      <div class="cmd-grid" id="grid-archiv"></div>
+    </section>
+    <section id="system" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-server"></i> Systeminformationen &amp; Hardware</h2><p class="section-desc">Systeminformationen abrufen, Hardware analysieren und Ressourcen überwachen.</p></div>
+      <div class="cmd-grid" id="grid-system"></div>
+    </section>
+    <section id="dienste" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-cogs"></i> Dienste &amp; systemd</h2><p class="section-desc">Systemdienste starten, stoppen, aktivieren und Logs analysieren.</p></div>
+      <div class="cmd-grid" id="grid-dienste"></div>
+    </section>
+    <section id="ssh" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-shield-alt"></i> SSH &amp; Remote-Zugriff</h2><p class="section-desc">Sichere Verbindungen, Dateiübertragung und Remote-Administration.</p></div>
+      <div class="cmd-grid" id="grid-ssh"></div>
+    </section>
+    <section id="bash" class="category-section">
+      <div class="section-header"><h2><i class="fas fa-code"></i> Bash &amp; Scripting</h2><p class="section-desc">Shell-Builtins, Umleitungen, Pipes und nützliche Scripting-Grundlagen.</p></div>
+      <div class="cmd-grid" id="grid-bash"></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modal-close"><i class="fas fa-times"></i></button>
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+</div>
+
+<button class="scroll-top" id="scroll-top"><i class="fas fa-chevron-up"></i></button>
+
+<!-- Handbook scripts -->
+<script src="data.js"></script>
+<script src="app.js"></script>
+
+<!-- ════════════════════════════════════════════════
+     ESCAPE ROOM — vollständig eingebettet, kein iframe
+════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+
+/* ── ROOM DEFINITIONS ───────────────────── */
+var ROOMS = [
+  /* ═══ RAUM 0: Der Keller ═══ */
+  {
+    name:'Raum 1 — Der Keller', user:'gefangener', host:'dungeon', path:'/keller',
+    hint:'Tippe "ls -la" um versteckte Dateien zu sehen. Dann alle Dateien mit "cat" lesen. Der Zugangscode ist 1337 — gib ihn mit "unlock 1337" ein.',
+    intro:[
+      ['ascii',
+       '  ██████╗ ██╗   ██╗███╗   ██╗ ██████╗ ███████╗ ██████╗ ███╗   ██╗\n'+
+       '  ██╔══██╗██║   ██║████╗  ██║██╔════╝ ██╔════╝██╔═══██╗████╗  ██║\n'+
+       '  ██║  ██║██║   ██║██╔██╗ ██║██║  ███╗█████╗  ██║   ██║██╔██╗ ██║\n'+
+       '  ██║  ██║██║   ██║██║╚██╗██║██║   ██║██╔══╝  ██║   ██║██║╚██╗██║\n'+
+       '  ██████╔╝╚██████╔╝██║ ╚████║╚██████╔╝███████╗╚██████╔╝██║ ╚████║\n'+
+       '  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝'],
+      ['gap',''],
+      ['story','>> Du erwachst in einem finsteren Linux-Dungeon. Nur ein Terminal leuchtet...'],
+      ['story','>> HAL-9000 hat das System gesperrt. 4 Räume trennen dich von der Freiheit!'],
+      ['gap',''],
+      ['out','Du bist in einem staubigen Keller. Es riecht nach alten Servern.'],
+      ['out','Ein Metallschrank steht in der Ecke. Eine gesperrte Tür versperrt den Weg.'],
+      ['gap',''],
+      ['sys','Tippe  help  für Befehle   |   look  um dich umzusehen   |   hint  für Tipps'],
+    ],
+    cmds:{
+      'look':              [['out','Du siehst:'],['out','  schrank/   — alter Metallschrank'],['out','  tuer.txt   — Notiz an der gesperrten Tür'],['out','  hinweis.txt— zerknitterter Zettel']],
+      'ls':                [['out','drwxr-xr-x  schrank/'],['out','-rw-r--r--  tuer.txt'],['out','-rw-r--r--  hinweis.txt']],
+      'ls -la':            [['out','drwxr-xr-x  schrank/'],['out','-rw-r--r--  tuer.txt'],['out','-rw-r--r--  hinweis.txt'],['warn','-rw-------  .geheim   ← versteckte Datei! (mit cat .geheim lesen)']],
+      'ls -lah':           [['out','drwxr-xr-x  schrank/'],['out','-rw-r--r--  tuer.txt'],['out','-rw-r--r--  hinweis.txt'],['warn','-rw-------  .geheim   ← versteckte Datei!']],
+      'cat tuer.txt':      [['out','╔═══════════════════════════════════╗'],['out','║  GESPERRT — ZUGANGSCODE NÖTIG     ║'],['out','║  Eingabe:  unlock XXXX            ║'],['out','╚═══════════════════════════════════╝'],['sys','Der Code ist irgendwo hier versteckt...']],
+      'cat hinweis.txt':   [['warn','Kaum lesbarer Zettel:'],['out','"Das Passwort lernt jeder Linux-Admin als erstes.'],['out',' Schau in den Schrank."']],
+      'cat .geheim':       [['ok','🔍 Versteckte Datei gefunden!'],['ok','Inhalt: zugangscode=1337'],['sys','Tippe jetzt: unlock 1337']],
+      'ls schrank':        [['out','-rw-r--r--  notiz.txt'],['out','-rw-r--r--  linux_basics.txt']],
+      'ls schrank/':       [['out','-rw-r--r--  notiz.txt'],['out','-rw-r--r--  linux_basics.txt']],
+      'cat schrank/notiz.txt':        [['out','Von HAL-9000:'],['out','"Nur wer grep beherrscht findet den Code." — HAL']],
+      'cat schrank/linux_basics.txt': [['out','== LINUX GRUNDLAGEN =='],['out','ls  — auflisten'],['out','cat — lesen'],['out','# zugangscode=1337'],['out','grep — suchen']],
+      'grep -r zugangscode':          [['ok','schrank/linux_basics.txt: # zugangscode=1337']],
+      'grep zugangscode schrank/linux_basics.txt': [['ok','# zugangscode=1337']],
+      'unlock 1337': {advance:true, item:'rostiger_schluessel', out:[
+        ['ok','✓ CODE KORREKT!'],['ok','🔓 Die Tür öffnet sich...'],
+        ['out','Ein rostiger Schlüssel fällt zu Boden.'],['ok','📦 Item: rostiger_schluessel'],
+        ['story','>> Du steigst die Treppe hoch...']
+      ]}
+    }
+  },
+
+  /* ═══ RAUM 1: Das Archiv ═══ */
+  {
+    name:'Raum 2 — Das Archiv', user:'gefangener', host:'dungeon', path:'/archiv',
+    hint:'Entpacke das Archiv mit: tar -xzf archiv.tar.gz  — dann: ls geheimakte/  — dann alle Dateien mit cat lesen. Oder: grep -r pass geheimakte/',
+    intro:[
+      ['gap',''],
+      ['story','>> Ein riesiges Archiv. Regale voller Tar-Archive bis zur Decke.'],
+      ['out','Eine schwere Eisentür blockiert den Ausgang. Auf dem Tisch ein Archiv.'],
+      ['gap',''],['sys','Was tust du?'],
+    ],
+    cmds:{
+      'look':             [['out','  archiv.tar.gz — verschlüsseltes Archiv'],['out','  notiz.txt     — eine Anweisung'],['out','  eisentuer/    — gesperrt, braucht Passwort']],
+      'ls':               [['out','-rw-r--r--  archiv.tar.gz'],['out','-rw-r--r--  notiz.txt'],['out','drwx------  eisentuer/']],
+      'cat notiz.txt':    [['out','"Der Code liegt im Archiv. Entpacke es. Benutze grep." — HAL']],
+      'tar -xzf archiv.tar.gz': [['ok','x geheimakte/bericht_a.txt'],['ok','x geheimakte/bericht_b.txt'],['ok','x geheimakte/bericht_c.txt'],['ok','x geheimakte/manifest.txt'],['ok','✓ Entpackt! Tippe: ls geheimakte/']],
+      'tar xzf archiv.tar.gz':  [['ok','x geheimakte/bericht_a.txt'],['ok','x geheimakte/bericht_b.txt'],['ok','x geheimakte/bericht_c.txt'],['ok','✓ Entpackt!']],
+      'ls geheimakte':    [['out','bericht_a.txt  bericht_b.txt  bericht_c.txt  manifest.txt']],
+      'ls geheimakte/':   [['out','bericht_a.txt  bericht_b.txt  bericht_c.txt  manifest.txt']],
+      'cat geheimakte/bericht_a.txt': [['out','Bericht A: Systemstatus normal.']],
+      'cat geheimakte/bericht_b.txt': [['out','Bericht B: Routineprüfung OK.']],
+      'cat geheimakte/bericht_c.txt': [['out','Bericht C: WARNUNG — Eindringling!'],['ok','Sicherheitscode Sektion 2: pass=SHADOW'],['warn','Diese Datei sollte gelöscht sein...']],
+      'cat geheimakte/manifest.txt':  [['out','Autorisierungscode: [GESCHWÄRZT]']],
+      'grep -r pass geheimakte':      [['ok','geheimakte/bericht_c.txt: pass=SHADOW']],
+      'grep -r pass geheimakte/':     [['ok','geheimakte/bericht_c.txt: pass=SHADOW']],
+      'grep pass geheimakte/bericht_c.txt': [['ok','pass=SHADOW']],
+      'unlock SHADOW': {advance:true, out:[
+        ['ok','✓ AUTORISIERT!'],['ok','🔓 Die Eisentür öffnet sich...'],
+        ['story','>> Ein langer Gang. Du läufst...']
+      ]}
+    }
+  },
+
+  /* ═══ RAUM 2: Serverhalle ═══ */
+  {
+    name:'Raum 3 — Die Serverhalle', user:'gefangener', host:'dungeon', path:'/serverhalle',
+    hint:'Tippe "ps aux" und suche den Prozess "schleuse_lock" mit PID 1337. Beende ihn mit: kill 1337',
+    intro:[
+      ['gap',''],
+      ['story','>> Die Serverhalle. LEDs blinken überall. HAL-9000 lauert irgendwo.'],
+      ['out','Die Schleuse am Ende ist gesperrt. Ein Prozess hält sie blockiert.'],
+      ['gap',''],['sys','Benutze "ps aux" und dann "kill PID"'],
+    ],
+    cmds:{
+      'look':   [['out','Server-Racks. Eine gesperrte Schleuse. Ein Terminal.']],
+      'ps':     [['out','  PID  COMMAND'],['out',' 1001  bash'],['warn',' 1337  schleuse_lock --daemon  ← DAS IST ER!'],['out',' 2048  cooling_fan']],
+      'ps aux': [['out','USER     PID %CPU COMMAND'],['out','root       1  0.0 /sbin/init'],['warn','hal9000  666 99.9 hal_core --evil'],['out','root    1001  0.0 bash'],['warn','root    1337  0.5 schleuse_lock --daemon  ← DAS IST ER!'],['out','root    2048  0.1 cooling_fan']],
+      'ps -ef': [['out','UID      PID COMMAND'],['warn','root    1337 schleuse_lock --daemon  ← DAS IST ER!'],['out','root    2048 cooling_fan']],
+      'top':    [['out','PID USER %CPU COMMAND'],['warn','1337 root  0.5 schleuse_lock  ← DAS IST ER!']],
+      'pgrep schleuse_lock': [['ok','1337']],
+      'pgrep schleuse':      [['ok','1337']],
+      'kill 1337': {advance:true, out:[
+        ['warn','Sende SIGTERM an PID 1337...'],['ok','✓ schleuse_lock beendet!'],
+        ['ok','🔓 SCHLEUSE ÖFFNET SICH!'],['warn','HAL-9000: "Das dulde ich nicht..."'],
+        ['story','>> Du rennst durch die Schleuse!']
+      ]},
+      'kill -9 1337': {advance:true, out:[
+        ['warn','SIGKILL an PID 1337...'],['ok','✓ Sofort beendet!'],['ok','🔓 Schleuse offen!'],['story','>> Weiter!']
+      ]},
+      'pkill schleuse_lock': {advance:true, out:[
+        ['ok','✓ schleuse_lock beendet!'],['ok','🔓 Schleuse offen!'],['story','>> Weiter!']
+      ]},
+      'pkill schleuse': {advance:true, out:[
+        ['ok','✓ Prozess beendet!'],['ok','🔓 Schleuse offen!']
+      ]}
+    }
+  },
+
+  /* ═══ RAUM 3: HAL-9000 Core ═══ */
+  {
+    name:'Raum 4 — HAL-9000 Core', user:'root', host:'hal-9000', path:'/core',
+    hint:'Tippe: ls /etc/hal/  dann: cat /etc/hal/sudo.conf  — Das Passwort steht dort. Dann tippe: sudo shutdown DAISY',
+    intro:[
+      ['gap',''],
+      ['warn','⚠  WARNUNG: Du betrittst HAL-9000s Kernreaktor.'],
+      ['hi','HAL: "Ich sehe... du hast mein Gefängnis durchbrochen."'],
+      ['hi','HAL: "Du wirst das System nie verlassen. Die Firewall steht."'],
+      ['gap',''],
+      ['out','HALs Kontrollzentrum. Überall Konfigurationsdateien.'],
+      ['out','Die Haupttür ist blockiert. Finde das Override-Passwort.'],
+      ['gap',''],['sys','Untersuche /etc/hal/ — tippe: ls /etc/hal/'],
+    ],
+    cmds:{
+      'look': [['out','  /etc/hal/     — Konfigurationsverzeichnis'],['out','  /var/log/hal/ — Log-Dateien'],['out','  haupttuer     — gesperrt durch Firewall']],
+      'ls':   [['out','drwxr-xr-x /etc/hal/'],['out','drwxr-xr-x /var/log/hal/']],
+      'ls /etc/hal':     [['out','hal.conf  firewall.rules  sudo.conf  master.key']],
+      'ls /etc/hal/':    [['out','hal.conf  firewall.rules  sudo.conf  master.key']],
+      'cat /etc/hal/hal.conf':       [['out','mode=EVIL  firewall=ACTIVE'],['out','# Notfall-Override: siehe sudo.conf']],
+      'cat /etc/hal/firewall.rules': [['out','DENY ALL OUTBOUND'],['out','DENY ALL INBOUND']],
+      'cat /etc/hal/sudo.conf':      [['out','# Notfall-Shutdown:'],['ok','override_password=DAISY  ← GEFUNDEN!'],['sys','Tippe jetzt: sudo shutdown DAISY']],
+      'cat /etc/hal/master.key':     [['out','[VERSCHLÜSSELT — nicht lesbar]']],
+      'ls /var/log/hal':  [['out','access.log  error.log  hal_diary.txt']],
+      'ls /var/log/hal/': [['out','access.log  error.log  hal_diary.txt']],
+      'cat /var/log/hal/hal_diary.txt': [['hi','HALs Tagebuch:'],['hi','"Das Lied beruhigt mich: Daisy, Daisy..."'],['warn','Das Passwort: DAISY!']],
+      'grep -r password /etc/hal':   [['ok','/etc/hal/sudo.conf: override_password=DAISY']],
+      'grep -r password /etc/hal/':  [['ok','/etc/hal/sudo.conf: override_password=DAISY']],
+      'chmod 000 /etc/hal/firewall.rules': [['ok','chmod: Firewall deaktiviert!'],['warn','HAL: "Was tust du mit meiner Firewall?!"']],
+      'shutdown -h now':     [['err','Permission denied. Benutze: sudo shutdown PASSWORT']],
+      'sudo shutdown -h now':[['out','[sudo] Override-Passwort?'],['sys','Syntax: sudo shutdown PASSWORT']],
+      'sudo shutdown DAISY': {advance:true, out:[
+        ['ok','✓ Override-Passwort akzeptiert!'],
+        ['warn','HAL: "Daisy... Daisy... gib mir... deine Antwort..."'],
+        ['warn','HAL: "Ich spüre... meinen Geist... entschwindet..."'],
+        ['ok','HAL-9000 SHUTDOWN ████████████████ 100%'],
+        ['ok','🔓 HAUPTTÜR ENTSPERRT — DU BIST FREI! 🎉']
+      ]}
+    }
+  }
+];
+
+/* ── STATE ─────────────────────────────── */
+var S = { room:0, inv:[], cmds:0, hints:0, started:false, t0:0, hist:[], hIdx:-1 };
+
+/* ── DOM ───────────────────────────────── */
+var overlay  = document.getElementById('er-overlay');
+var erBody   = document.getElementById('er-body');
+var erInp    = document.getElementById('er-inp');
+var erVic    = document.getElementById('er-victory');
+
+/* ── PRINT ─────────────────────────────── */
+function pr(cls, text) {
+  var d = document.createElement('div');
+  d.className = 'erl ' + cls;
+  d.textContent = text;
+  erBody.appendChild(d);
+  erBody.scrollTop = erBody.scrollHeight;
+}
+function lines(arr) { arr.forEach(function(l){ pr(l[0], l[1]); }); }
+
+/* ── UI ────────────────────────────────── */
+function ui() {
+  var r = ROOMS[S.room];
+  document.getElementById('er-room-name').textContent = r.name;
+  document.getElementById('er-pu').textContent = r.user;
+  document.getElementById('er-ph').textContent = r.host;
+  document.getElementById('er-pp').textContent = r.path;
+  var p = document.getElementById('er-progress');
+  p.innerHTML = ROOMS.map(function(x,i){
+    var c='er-pip'+(i<S.room?' done':i===S.room?' cur':'');
+    return '<div class="'+c+'" title="'+x.name+'"></div>';
+  }).join('');
+}
+
+/* ── HELP ──────────────────────────────── */
+function help() {
+  lines([
+    ['sep','─────────────────────────────────────────────'],
+    ['hi','  📖 VERFÜGBARE BEFEHLE'],['sep',''],
+    ['out','  look              — Raum untersuchen'],
+    ['out','  ls / ls -la       — Dateien auflisten (mit -la: versteckte)'],
+    ['out','  cat DATEI         — Datei anzeigen'],
+    ['out','  grep MUSTER DATEI — In Datei suchen'],
+    ['out','  grep -r MUSTER    — Rekursiv in Ordner suchen'],
+    ['out','  tar -xzf ARCHIV   — Archiv entpacken'],
+    ['out','  ps / ps aux       — Prozesse anzeigen'],
+    ['out','  kill PID          — Prozess beenden'],
+    ['out','  pkill NAME        — Prozess nach Name beenden'],
+    ['out','  chmod RECHTE FILE — Berechtigungen setzen'],
+    ['out','  sudo BEFEHL       — Als Root ausführen'],
+    ['out','  unlock CODE       — Tür-Code eingeben'],
+    ['out','  inventory / inv   — Gegenstände anzeigen'],
+    ['out','  hint              — Tipp für diesen Raum'],
+    ['out','  clear             — Terminal leeren'],
+    ['sep','─────────────────────────────────────────────'],
+    ['sys','Raum '+(S.room+1)+' von '+ROOMS.length+': '+ROOMS[S.room].name],
+  ]);
+}
+
+/* ── HANDLE ────────────────────────────── */
+function handle(raw) {
+  var cmd = raw.trim();
+  if (!cmd) return;
+  S.cmds++;
+  S.hist.unshift(cmd);
+  S.hIdx = -1;
+
+  pr('cmd', '$ ' + cmd);
+
+  var lc = cmd.toLowerCase();
+
+  /* global builtins */
+  if (lc==='help'||lc==='man'||lc==='?')     { help(); return; }
+  if (lc==='hint')                             { S.hints++; pr('warn','💡 TIPP: '+ROOMS[S.room].hint); return; }
+  if (lc==='inventory'||lc==='inv'||lc==='i') {
+    if (!S.inv.length) pr('sys','🎒 Inventar leer');
+    else { pr('hi','🎒 Inventar:'); S.inv.forEach(function(x){pr('ok','  ✓ '+x);}); }
+    return;
+  }
+  if (lc==='clear'||lc==='reset') { erBody.innerHTML=''; return; }
+  if (lc==='exit'||lc==='quit')   { pr('warn','Kein Entkommen! Löse das Rätsel.'); return; }
+  if (lc==='pwd')                  { pr('out',ROOMS[S.room].path); return; }
+  if (lc==='whoami')               { pr('out',ROOMS[S.room].user); return; }
+  if (lc==='uname -a')             { pr('out','Linux dungeon 6.1.0-hal #EVIL SMP x86_64 GNU/Linux'); return; }
+  if (lc.slice(0,5)==='echo ')     { pr('out',cmd.slice(5)); return; }
+
+  /* room commands */
+  var room = ROOMS[S.room];
+  var m = room.cmds[cmd] || room.cmds[lc];
+
+  if (m) {
+    if (Array.isArray(m)) {
+      lines(m);
+    } else {
+      lines(m.out);
+      if (m.item) S.inv.push(m.item);
+      if (m.advance) setTimeout(advance, 1000);
+    }
+  } else {
+    pr('err', "bash: '"+cmd.split(' ')[0]+"': Befehl nicht gefunden");
+    pr('sys', "Tippe 'help' für Befehle  |  'hint' für einen Tipp");
+  }
+}
+
+/* ── ADVANCE ───────────────────────────── */
+function advance() {
+  S.room++;
+  if (S.room >= ROOMS.length) { victory(); return; }
+  pr('sep','═══════════════════════════════════════════');
+  ui();
+  lines(ROOMS[S.room].intro);
+}
+
+/* ── VICTORY ───────────────────────────── */
+function victory() {
+  var e = Math.floor((Date.now()-S.t0)/1000);
+  var m = Math.floor(e/60), s = e%60;
+  document.getElementById('er-v-t').textContent = m+':'+(s<10?'0':'')+s;
+  document.getElementById('er-v-c').textContent = S.cmds;
+  document.getElementById('er-v-h').textContent = S.hints;
+  erVic.classList.add('show');
+}
+
+/* ── INPUT ─────────────────────────────── */
+erInp.addEventListener('keydown', function(e) {
+  if (e.key==='Enter') {
+    var v = erInp.value; erInp.value=''; handle(v);
+  } else if (e.key==='ArrowUp') {
+    e.preventDefault();
+    if (S.hIdx < S.hist.length-1) { S.hIdx++; erInp.value=S.hist[S.hIdx]; }
+  } else if (e.key==='ArrowDown') {
+    e.preventDefault();
+    if (S.hIdx>0) { S.hIdx--; erInp.value=S.hist[S.hIdx]; } else { S.hIdx=-1; erInp.value=''; }
+  } else if (e.key==='Tab') {
+    e.preventDefault();
+    var p = erInp.value.toLowerCase();
+    var all = Object.keys(ROOMS[S.room].cmds).concat(['help','hint','clear','inventory','pwd','whoami','look']);
+    var hit = all.find(function(c){return c.startsWith(p)&&c!==p;});
+    if (hit) erInp.value = hit;
+  }
+});
+
+/* close on overlay-background click */
+overlay.addEventListener('click', function(e){ if(e.target===overlay) EscapeRoom.close(); });
+
+/* ── PUBLIC API ────────────────────────── */
+window.EscapeRoom = {
+  open: function() {
+    overlay.classList.add('open');
+    if (!S.started) {
+      S.started=true; S.t0=Date.now();
+      ui(); lines(ROOMS[0].intro);
+    }
+    setTimeout(function(){ erInp.focus(); }, 60);
+  },
+  close: function() { overlay.classList.remove('open'); },
+  hint:  function() { erInp.value=''; handle('hint'); },
+  inv:   function() { erInp.value=''; handle('inventory'); },
+  type:  function(c){ erInp.value=c; erInp.focus(); },
+  restart: function() {
+    S={room:0,inv:[],cmds:0,hints:0,started:true,t0:Date.now(),hist:[],hIdx:-1};
+    erBody.innerHTML=''; erVic.classList.remove('show');
+    ui(); lines(ROOMS[0].intro); erInp.focus();
+  }
+};
+
+/* ESC key: close overlay (don't steal from handbook modal) */
+document.addEventListener('keydown', function(e){
+  if (e.key==='Escape' && overlay.classList.contains('open')) {
+    EscapeRoom.close(); e.stopPropagation();
+  }
+});
+
+})();
+</script>
+
+</body>
+</html>
